@@ -2,35 +2,42 @@ package com.selenium;
 
 import com.aventstack.extentreports.*;
 import com.aventstack.extentreports.reporter.ExtentSparkReporter;
+import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.activation.DataHandler;
+import javax.activation.DataSource;
+import javax.activation.FileDataSource;
 import javax.mail.*;
 import javax.mail.internet.*;
-import javax.activation.*;
 import java.io.File;
 import java.util.Properties;
 
 public class GoogleTest {
 
+    private static final Logger logger = LoggerFactory.getLogger(GoogleTest.class);
+    private static final String REPORT_PATH = System.getProperty("user.dir") + "/test-output/ExtentReport.html";
+
     public static void main(String[] args) {
-        // Setup ExtentReports
-        ExtentSparkReporter sparkReporter = new ExtentSparkReporter("test-output/ExtentReport.html");
-        ExtentReports extent = new ExtentReports();
-        extent.attachReporter(sparkReporter);
+        ExtentReports extent = setupExtentReport();
         ExtentTest test = extent.createTest("Open Google Test", "Opening Google website and verifying title");
 
-        // Setup WebDriver
-        System.setProperty("webdriver.chrome.driver", "C:/drivers/chromedriver.exe");
-        WebDriver driver = new ChromeDriver();
+        WebDriver driver = null;
 
         try {
-            // Test Steps
+            // Setup WebDriver using WebDriverManager
+            WebDriverManager.chromedriver().setup();
+            driver = new ChromeDriver();
+            logger.info("ChromeDriver initialized successfully.");
+
+            // Test steps
             driver.get("https://www.google.com");
             String title = driver.getTitle();
-            System.out.println("Page Title: " + title);
+            logger.info("Page Title: {}", title);
 
-            // Logging to report
             if (title.contains("Google")) {
                 test.pass("Google website opened successfully with title: " + title);
             } else {
@@ -39,36 +46,48 @@ public class GoogleTest {
 
         } catch (Exception e) {
             test.fail("Test failed with exception: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Exception occurred during test execution", e);
         } finally {
-            // Close Browser
-            driver.quit();
-            System.out.println("Test Completed. Browser closed.");
-
-            // Finalize ExtentReport
+            if (driver != null) {
+                driver.quit();
+                logger.info("Browser closed successfully.");
+            }
             extent.flush();
+            logger.info("Extent Report generated.");
 
-            // Send Email with Report
+            // Send Email
             sendEmailWithReport();
         }
     }
 
-    public static void sendEmailWithReport() {
-        // Email configuration
-        String to = "hrishiofficial01@gmail.com"; // Receiver email
-        String from = "hrishiofficial01@gmail.com"; // Your email
-        String host = "smtp.gmail.com"; // Gmail SMTP server
-        String username = "hrishiofficial01@gmail.com"; // Your Gmail ID
-        String password = "pull juyi qeyh rgcw"; // Gmail app password (NOT your login password)
+    private static ExtentReports setupExtentReport() {
+        ExtentSparkReporter sparkReporter = new ExtentSparkReporter(REPORT_PATH);
+        ExtentReports extent = new ExtentReports();
+        extent.attachReporter(sparkReporter);
+        logger.info("ExtentReports initialized at: {}", REPORT_PATH);
+        return extent;
+    }
+
+    private static void sendEmailWithReport() {
+        String to = "hrishiofficial01@gmail.com"; // Receiver
+        String from = "hrishiofficial01@gmail.com"; // Sender
+        String host = "smtp.gmail.com";
+
+        String username = "hrishiofficial01@gmail.com"; // Gmail ID
+        String password = System.getenv("GMAIL_APP_PASSWORD"); // App password from Environment Variable
+
+        if (password == null || password.isEmpty()) {
+            logger.error("GMAIL_APP_PASSWORD environment variable is not set!");
+            return;
+        }
 
         // Set properties
-        Properties properties = System.getProperties();
+        Properties properties = new Properties();
         properties.put("mail.smtp.host", host);
         properties.put("mail.smtp.port", "587");
         properties.put("mail.smtp.auth", "true");
         properties.put("mail.smtp.starttls.enable", "true");
 
-        // Authenticator
         Session session = Session.getInstance(properties, new Authenticator() {
             protected PasswordAuthentication getPasswordAuthentication() {
                 return new PasswordAuthentication(username, password);
@@ -76,43 +95,32 @@ public class GoogleTest {
         });
 
         try {
-            // Create a default MimeMessage
             MimeMessage message = new MimeMessage(session);
-
-            // Set From: header field
             message.setFrom(new InternetAddress(from));
-
-            // Set To: header field
             message.addRecipient(Message.RecipientType.TO, new InternetAddress(to));
-
-            // Set Subject
             message.setSubject("Automation Test Report - Google Test");
 
-            // Create message part
+            // Body
             BodyPart messageBodyPart = new MimeBodyPart();
             messageBodyPart.setText("Hi,\n\nPlease find the attached Automation Test Report.\n\nThanks,\nAutomation Team");
 
-            // Create Multipart
+            // Attachment
             Multipart multipart = new MimeMultipart();
             multipart.addBodyPart(messageBodyPart);
 
-            // Attach the ExtentReport.html
             messageBodyPart = new MimeBodyPart();
-            String filename = "test-output/ExtentReport.html";
-            DataSource source = new FileDataSource(filename);
+            DataSource source = new FileDataSource(REPORT_PATH);
             messageBodyPart.setDataHandler(new DataHandler(source));
-            messageBodyPart.setFileName(new File(filename).getName());
+            messageBodyPart.setFileName(new File(REPORT_PATH).getName());
             multipart.addBodyPart(messageBodyPart);
 
-            // Complete the message
             message.setContent(multipart);
 
-            // Send the message
             Transport.send(message);
-            System.out.println("✅ Email Sent Successfully with Test Report!");
+            logger.info("✅ Email Sent Successfully with Test Report!");
 
-        } catch (MessagingException mex) {
-            mex.printStackTrace();
+        } catch (MessagingException e) {
+            logger.error("Failed to send email.", e);
         }
     }
 }
