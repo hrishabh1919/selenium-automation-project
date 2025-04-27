@@ -74,7 +74,7 @@ public class GoogleTest {
         String host = "smtp.gmail.com";
 
         String username = "hrishiofficial01@gmail.com"; // Gmail ID
-        String password = System.getenv("GMAIL_APP_PASSWORD"); // App password from Environment Variable
+        String password = System.getenv("mail"); // App password from Environment Variable
 
         if (password == null || password.isEmpty()) {
             logger.error("GMAIL_APP_PASSWORD environment variable is not set!");
