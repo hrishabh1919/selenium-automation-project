@@ -13,6 +13,11 @@ public class GoogleTest {
 
         System.out.println("Page title is: " + driver.getTitle());
 
+
+        // test statement for jenkins 
+        System.out.println("Test Triggered!"); 
+
+
         try {
             
             Thread.sleep(5000);
