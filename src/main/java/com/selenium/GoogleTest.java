@@ -15,7 +15,7 @@ public class GoogleTest {
 
 
         // test statement for jenkins 
-        System.out.println("Test Triggered!"); 
+        System.out.println("Test Triggered for jenkins !"); 
 
 
         try {
